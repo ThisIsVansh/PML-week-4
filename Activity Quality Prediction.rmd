@@ -1,0 +1,151 @@
+---
+title: "Activity Quality Prediction"
+author: "Vansh Jain"
+date: "25/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Synopsis
+
+The goal of the project is to utilise the data collected by fitness devices to help people have better outcomes from the exercise
+
+# Data Description
+
+The 'classe' variable represents the outcome. It is a 5 factor variable. 
+
+The participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in 5 different fashions:
+
+- exactly according to the specification (Class A)
+- throwing the elbows to the front (Class B)
+- lifting the dumbbell only halfway (Class C)
+- lowering the dumbbell only halfway (Class D)
+- throwing the hips to the front (Class E)
+
+# Data Processing
+
+## Loading the necessary libraries
+
+```{r}
+library("caret")
+library("randomForest")
+library("rpart")
+library("rpart.plot")
+```
+
+## Applying a seed for reproducability
+
+```{r}
+set.seed(1234)
+```
+
+## Cleaning the data
+
+Here basic transformations and cleanup is performed. The 'NA' values are omiitted and the irrelevant columns are removed.
+
+### Reading the data
+
+```{r}
+training_dataframe <- read.csv("pml-training.csv", na.strings=c("NA", "#DIV/0!", ""))
+testing_datafrane <- read.csv("pml-testing.csv", na.strings=c("NA", "#DIV/0!", ""))
+```
+
+### Removing all non-values
+```{r}
+training_dataframe <- training_dataframe[,colSums(is.na(training_dataframe)) == 0]
+testing_datafrane <- testing_datafrane[,colSums(is.na(testing_datafrane)) == 0]
+```
+
+### Subset the data
+
+Here we remove columns 1-7, namely `user_name`, `raw_timestamp_part_1`, `raw_timestamp_part_2`, `cvtd_timestamp`, `new_window`, and  `num_window`.
+
+```{r}
+training_dataframe <- training_dataframe[,-c(1:7)]
+testing_datafrane <- testing_datafrane[,-c(1:7)]
+```
+
+## Cross-Validation
+
+Here we split the data into training dataset(75%) and testing dataset(75%)
+
+```{r}
+samples <- createDataPartition(y = training_dataframe $ classe, p = 0.75, list = FALSE)
+training <- training_dataframe[samples, ]
+testing <- training_dataframe[-samples, ]
+```
+
+The expected out-of-sample error will correspond to the quantity: 1-accuracy in the cross-validation data.
+
+# Exploratory Data Analysis
+
+```{r}
+plot(training$classe, col = "blue", main = "Levels of the variable classe",
+     xlab = "Classe Levels", ylab = "Frequency")
+```
+
+Classe A is the most frequent, whereas classe D is the least frequent.
+
+# Prediction Models
+
+## Decision Tree
+
+```{r}
+# Fitting the model
+decision_tree_fit <- rpart(classe ~ ., data = training, method = "class")
+
+# Predicting using the model
+decision_tree_prediction <- predict(decision_tree_fit, testing, type = "class")
+
+# Plotting the result
+rpart.plot(decision_tree_fit, main = "Decision Tree Sturcture",
+           extra = 102, under = TRUE, faclen = 0)
+```
+
+### Confusion Matrix
+
+```{r}
+confusionMatrix(decision_tree_prediction, testing$classe)
+```
+
+## Random Forest
+
+```{r}
+#Fitting the random forest model
+random_forest_fit <- randomForest(classe ~., data = training, method = "class")
+
+#Performing the prediction
+random_forest_prediction <- predict(random_forest_fit, testing, type = "class")
+```
+
+### Confusion matrix
+
+```{r}
+confusionMatrix(random_forest_prediction, testing$classe)
+```
+# Result and Conclusion
+
+The Random Forest Model performs better than the Decision Tree Model. This is based on the higher accuracy achieved by the Random Forest Model.
+
+## Expected out-of-sample errors
+
+Here the error is estimated at 0.5%.
+
+## Submission
+```{r}
+# Perform Prediction
+submission <- predict(random_forest_fit, testing_datafrane, type = "class")
+submission
+
+# Storing it to HD.
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("./data/submission/problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+```
